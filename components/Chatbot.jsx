@@ -250,21 +250,27 @@ export default function Chatbot() {
         throw new Error('Supabase client not available')
       }
 
+      const normalizedPhone = String(data.phone || '').replace(/\D/g, '')
+      if (!/^[0-9]{10}$/.test(normalizedPhone)) {
+        throw new Error('Phone number must contain exactly 10 digits.')
+      }
+
       const leadData = {
         session_id: sessionId,
-        name: data.name || 'Unknown',
-        phone: data.phone || 'Unknown',
-        budget: data.budget || 'Unknown',
-        timeline: data.timeline || 'Unknown',
-        intent: data.intent || 'Unknown',
+        name: String(data.name || 'Unknown').trim() || 'Unknown',
+        phone: normalizedPhone,
+        budget: String(data.budget || 'Unknown').trim() || 'Unknown',
+        timeline: String(data.timeline || 'Unknown').trim() || 'Unknown',
+        intent: String(data.intent || 'Unknown').trim() || 'Unknown',
         source: 'website_chatbot',
         created_at: new Date().toISOString(),
       }
 
+      console.log('Attempting to save lead:', leadData)
       const { error } = await client.from('leads').insert([leadData])
       if (error) {
         console.error('Supabase insert error:', error)
-        setError('Unable to save your lead. Please try again later.')
+        setError(`Unable to save your lead: ${error.message || 'Unknown Supabase error.'}`)
         return false
       }
 
@@ -272,9 +278,32 @@ export default function Chatbot() {
       return true
     } catch (err) {
       console.error('Error saving lead:', err)
-      setError('Unable to save your lead. Please check your connection and try again.')
+      setError(err instanceof Error ? `Unable to save lead: ${err.message}` : 'Unable to save your lead right now. Please check your connection and try again.')
       return false
     }
+  }
+
+  const retrySave = async () => {
+    if (loading) return
+    setLoading(true)
+    setError('')
+
+    const saved = await saveLead({ ...userData, phone: (userData.phone || '').replace(/\D/g, '') })
+    await new Promise((resolve) => setTimeout(resolve, 600))
+
+    const botMsg = {
+      id: `bot-${Date.now()}`,
+      text: saved
+        ? `✅ Perfect! Lead saved.\n\nHamare advisor aaj 6–8 PM ke beech call karega.\n\nThank you for trusting us! 🙏`
+        : 'Sorry, we could not save your lead right now. Please try again in a few moments.',
+      type: 'bot',
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, botMsg])
+    if (saved) {
+      setIsSaved(true)
+    }
+    setLoading(false)
   }
 
   const currentFlow = FLOW[step]
@@ -322,8 +351,11 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* Options or input based on step */}
-          {!isSaved && !loading && showOptions && (
+          <div ref={chatEndRef} />
+        </div>
+
+        <div className={styles.chatFooter}>
+          {!isSaved && (
             <>
               {currentFlow.isInput ? (
                 <div className={styles.inputGroup}>
@@ -372,7 +404,12 @@ export default function Chatbot() {
             </div>
           )}
 
-          {/* Final message */}
+          {error && step === FLOW.length - 1 && !isSaved && (
+            <button className={styles.retryBtn} onClick={retrySave}>
+              Retry save
+            </button>
+          )}
+
           {isSaved && (
             <div className={styles.successMessage}>
               <div className={styles.checkmark}>✓</div>
@@ -382,11 +419,8 @@ export default function Chatbot() {
               </div>
             </div>
           )}
-
-          <div ref={chatEndRef} />
         </div>
 
-        {/* Footer */}
         <div className={styles.footer}>
           <div className={styles.footerText}>Powered by Money Tree · by Yash</div>
         </div>
