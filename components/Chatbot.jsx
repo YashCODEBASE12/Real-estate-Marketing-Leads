@@ -144,8 +144,12 @@ export default function Chatbot() {
     setError('')
 
     const isPhoneStep = FLOW[step].key === 'phone'
-    const normalizedPhone = userMsg.replace(/\D/g, '')
-    if (isPhoneStep && !/^\d{10}$/.test(normalizedPhone)) {
+    const normalizedPhone = String(userMsg || '')
+      .replace(/[\s\-\+]/g, '')
+      .replace(/\D/g, '')
+      .slice(-10)
+
+    if (isPhoneStep && normalizedPhone.length !== 10) {
       setError('Please enter a valid 10-digit phone number.')
       setLoading(false)
       return
@@ -250,9 +254,14 @@ export default function Chatbot() {
         throw new Error('Supabase client not available')
       }
 
-      const normalizedPhone = String(data.phone || '').replace(/\D/g, '')
-      if (!/^[0-9]{10}$/.test(normalizedPhone)) {
-        throw new Error('Phone number must contain exactly 10 digits.')
+      const normalizedPhone = String(data.phone || '')
+        .replace(/[\s\-\+]/g, '')
+        .replace(/\D/g, '')
+        .slice(-10)
+
+      if (normalizedPhone.length !== 10) {
+        console.error('Invalid phone length:', normalizedPhone.length, 'raw input:', data.phone)
+        throw new Error('Please enter a valid 10-digit phone number.')
       }
 
       const leadData = {
@@ -278,7 +287,8 @@ export default function Chatbot() {
       return true
     } catch (err) {
       console.error('Error saving lead:', err)
-      setError(err instanceof Error ? `Unable to save lead: ${err.message}` : 'Unable to save your lead right now. Please check your connection and try again.')
+      const message = err instanceof Error ? err.message : 'Unable to save your lead right now. Please check your connection and try again.'
+      setError(`Please check your phone number and try again. ${message}`)
       return false
     }
   }
