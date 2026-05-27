@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 import styles from './Chatbot.module.css'
 
 const STORAGE_KEY = 'chatbot_session_state'
@@ -70,6 +70,11 @@ export default function Chatbot() {
       } catch (err) {
         console.warn('Failed to restore chatbot session state:', err)
       }
+    }
+
+    const client = getSupabaseClient()
+    if (!client) {
+      setError('Supabase is not initialized. Please check NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY.')
     }
   }, [])
 
@@ -240,6 +245,11 @@ export default function Chatbot() {
 
   const saveLead = async (data) => {
     try {
+      const client = getSupabaseClient()
+      if (!client) {
+        throw new Error('Supabase client not available')
+      }
+
       const leadData = {
         session_id: sessionId,
         name: data.name || 'Unknown',
@@ -251,7 +261,7 @@ export default function Chatbot() {
         created_at: new Date().toISOString(),
       }
 
-      const { error } = await supabase.from('leads').insert([leadData])
+      const { error } = await client.from('leads').insert([leadData])
       if (error) {
         console.error('Supabase insert error:', error)
         setError('Unable to save your lead. Please try again later.')

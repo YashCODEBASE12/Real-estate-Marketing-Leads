@@ -2,7 +2,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getSupabaseClient } from '@/lib/supabaseClient'
 import styles from './Dashboard.module.css'
 
 export default function Dashboard() {
@@ -17,20 +17,30 @@ export default function Dashboard() {
   const [last24, setLast24] = useState(true)
 
   useEffect(() => {
+    const client = getSupabaseClient()
+    if (!client) {
+      setError('Supabase is not initialized. Please check your NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY settings.')
+      setLoading(false)
+      return
+    }
+
     setPage(0)
-    fetchLeads(0, true)
+    fetchLeads(0, true, client)
     // Auto-refresh every 10 seconds
-    const interval = setInterval(() => fetchLeads(0, true), 10000)
+    const interval = setInterval(() => fetchLeads(0, true, client), 10000)
     return () => clearInterval(interval)
   }, [last24])
 
-  const fetchLeads = async (pageToLoad = 0, replace = false) => {
+  const fetchLeads = async (pageToLoad = 0, replace = false, clientParam = null) => {
     try {
       setError('')
+      const client = clientParam || getSupabaseClient()
+      if (!client) throw new Error('Supabase client not available')
+
       const start = pageToLoad * pageSize
       const end = start + pageSize - 1
 
-      let query = supabase
+      let query = client
         .from('leads')
         .select('id, session_id, name, phone, budget, timeline, intent, source, created_at')
         .order('created_at', { ascending: false })
@@ -96,8 +106,11 @@ export default function Dashboard() {
     ;(async () => {
       try {
         setError('')
+        const client = getSupabaseClient()
+        if (!client) throw new Error('Supabase client not available')
+
         // Fetch all leads (capped)
-        let q = supabase.from('leads').select('name, phone, budget, timeline, intent, source, created_at').order('created_at', { ascending: false }).limit(10000)
+        let q = client.from('leads').select('name, phone, budget, timeline, intent, source, created_at').order('created_at', { ascending: false }).limit(10000)
         if (last24) {
           const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
           q = q.gte('created_at', since)
