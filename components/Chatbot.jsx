@@ -99,7 +99,7 @@ export default function Chatbot() {
     {
       key: 'name',
       isInput: true,
-      placeholder: 'Eg: Rajesh Sharma',
+      placeholder: 'Your name...',
       options: null,
       nextMessage: (val) =>
         `Welcome, ${val} Sir! �\n\nJo log sahi time pe invest karte hain woh 3 saal mein double return dekhte hain.\n\nAapka budget range kya hai?`,
@@ -128,7 +128,7 @@ export default function Chatbot() {
     {
       key: 'phone',
       isInput: true,
-      placeholder: '10 digits only',
+      placeholder: '10 digits',
       options: null,
       nextMessage: (val) =>
         `✅ Perfect! Lead saved.\n\nHamare advisor aaj 6–8 PM ke beech call karega.\n\nThank you for trusting us! 🙏`,
