@@ -249,11 +249,7 @@ export default function Chatbot() {
 
   const saveLead = async (data) => {
     try {
-      const client = getSupabaseClient()
-      if (!client) {
-        throw new Error('Supabase client not available')
-      }
-
+      // Validate and normalize phone
       const normalizedPhone = String(data.phone || '')
         .replace(/[\s\-\+]/g, '')
         .replace(/\D/g, '')
@@ -275,15 +271,23 @@ export default function Chatbot() {
         created_at: new Date().toISOString(),
       }
 
-      console.log('Attempting to save lead:', leadData)
-      const { error } = await client.from('leads').insert([leadData])
-      if (error) {
-        console.error('Supabase insert error:', error)
-        setError(`Unable to save your lead: ${error.message || 'Unknown Supabase error.'}`)
+      // Send to server API route which uses a secure service role key
+      console.log('Posting lead to API:', leadData)
+      const res = await fetch('/api/save-lead', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(leadData),
+      })
+
+      const json = await res.json().catch(() => ({ ok: false }))
+      if (!res.ok || !json.ok) {
+        const msg = (json && json.error) || `HTTP ${res.status}`
+        console.error('API save error:', msg)
+        setError(`Unable to save your lead: ${msg}`)
         return false
       }
 
-      console.log('Lead saved successfully')
+      console.log('Lead saved successfully via API')
       return true
     } catch (err) {
       console.error('Error saving lead:', err)
